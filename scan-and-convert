@@ -1,0 +1,129 @@
+#!/bin/bash
+#
+# Scan and convent bibliographic records files in an incoming directory
+# Moving them to a processed directory as they are finished
+
+# Function similar to perl die
+function die() {
+    echo $* 1>&2
+    exit 1
+}
+  
+
+# Read system configuration
+[ -r /etc/sysconfig/discovery ] && source /etc/sysconfig/discovery
+
+# Assign defaults
+
+MYDIR=`dirname $0`
+JAVA_HOME=/usr/nlm/discovery/java/current
+PATH=$JAVA_HOME/bin:$PATH
+export JAVA_HOME
+export PATH
+
+ORACLE_HOME=/usr/nlm/share/oracle/11.2.0
+export ORACLE_HOME
+
+if [ `hostname -s` = 'dvlbvgr01' ]; then
+    TNS_ADMIN=/oracle/app/oracle/product/11.2.0/db_1/network/admin
+elif [ `hostname -s` = 'pvlbvgr01' ]; then
+    TNS_ADMIN=/oracle/app/oracle/product/11.2.0/db_1/network/admin
+else
+    TNS_ADMIN=/usr/nlm/share/etc/tns_admin
+fi
+export TNS_ADMIN
+   
+[ -z "$INCOMING" ] && INCOMING=/usr/nlm/discovery/data/incoming
+[ -z "$PROCESSED" ] && PROCESSED=/usr/nlm/discovery/data/processed
+[ -z "$CONVERT_TO" ] && CONVERT_TO=/usr/nlm/discovery/data/crawl/bibs
+[ -z "$SOLRMARC_DIR" ] && SOLRMARC_DIR=/usr/nlm/discovery/solrmarc
+[ -z "$CONVERT_LOG" ] && CONVERT_LOG=/usr/nlm/discovery/logs/marchandler.log
+[ -z "$VGER_DBNAME"] && VGER_DBNAME=libr
+[ -z "$VGER_USER"] && VGER_USER=impromptu
+[ -z "$COLLECTION"] && COLLECTION=nlm-catalog
+
+export VGER_DBNAME
+export VGER_USER
+
+# echo these
+echo "" | tee -a $CONVERT_LOG
+echo `date +'%Y/%m/%d %H:%M:%S'` "scan-and-convert started" | tee -a $CONVERT_LOG
+echo "--------------------------------------------------" | tee -a $CONVERT_LOG
+echo "Solrmarc directory ............ $SOLRMARC_DIR"
+echo "Scan for new files in ......... $INCOMING" 
+echo "Generate xml files in ......... $CONVERT_TO"
+echo "Generate log files in ......... $CONVERT_LOG"
+echo "Move files to ................. $PROCESSED"
+echo "Collection .................... $COLLECTION"
+echo "Voyager Database .............. $VGER_DBNAME"
+echo "Voyager Username .............. $VGER_USER"
+echo ""
+
+# Validate that we can access these appropriately
+
+[ -d "$SOLRMARC_DIR" ] || die "error: Cannot read directory $SOLRMARC_DIR"
+[ -d "$INCOMING"  -a -r "$INCOMING" ] || die "error: Cannot read/write directory $INCOMING"
+[ -d "$CONVERT_TO" -a -r "$CONVERT_TO" ] || die "error: Cannot read/write directory $CONVERT_TO"
+[ -d "$PROCESSED" -a -r "$PROCESSED" ] || die "error: Cannot read/write directory $PROCESSED"
+
+# Make it safe to change directory to SOLRMARC_DIR
+
+INCOMING=`readlink -e "$INCOMING"`
+CONVERT_TO=`readlink -e "$CONVERT_TO"`
+PROCESSED=`readlink -e "$PROCESSED"`
+CONVERT_LOG=`readlink -f "$CONVERT_LOG"`
+
+# Go there 
+
+cd "$SOLRMARC_DIR"
+
+
+# Build the command-line
+SOLRMARC="java -Xmx512m -Dsolrmarc.main.class=nlm.discovery.marc.NlmMarcHandler -jar SolrMarc.jar"
+
+# Scan and convert files in the incoming directory matching the filenaming convensions 
+
+COUNT=0
+RETVAL=0
+
+for file in `ls $INCOMING/bibs-?[0-9]*.mrc 2>/dev/null`; do 
+    BASE=`basename "$file"`
+    echo "Converting MARC21 bibliographic records from $file..." | tee -a $CONVERT_LOG
+    $SOLRMARC de_config.properties "$file" "--outdir=$CONVERT_TO" --prefix="bib-" 1>>$CONVERT_LOG 2>&1
+    if [ $? -eq 0 ]; then 
+        echo "SUCCEEDED" | tee -a $CONVERT_LOG
+        mv -f "$file" "$PROCESSED/$BASE"
+        COUNT=$((COUNT+1))
+    else
+        echo "FAILED" | tee -a $CONVERT_LOG
+	RETVAL=1
+        break
+    fi
+done
+
+for file in `ls $INCOMING/bibs-deleted.mrc 2>/dev/null`; do
+    BASE=`basename "$file"`
+    echo "Deleting MARC21 bibliographic records from $file" | tee -a $CONVERT_LOG
+    $SOLRMARC de_config.properties "$file" "--delete" "--outdir=$CONVERT_TO" --prefix="bib-" 1>>$CONVERT_LOG 2>&1
+    if [ $? -eq 0 ]; then 
+        echo "SUCCEEDED" | tee -a $CONVERT_LOG
+        mv -f "$file" "$PROCESSED/$BASE"
+        COUNT=$((COUNT+1))
+    else 
+        echo "FAILED" | tee -a $CONVERT_LOG
+	RETVAL=1
+        break
+    fi
+done
+
+if [ $COUNT -gt 0 ]; then
+    echo "Processed $COUNT files - touching recrawl file" | tee -a $CONVERT_LOG
+    touch "$CONVERT_TO/recrawl"
+else
+    echo "No files converted" | tee -a $CONVERT_LOG
+fi
+
+echo "--------------------------------------------------" | tee -a $CONVERT_LOG
+echo `date +'%Y/%m/%d %H:%M:%S'` "scan-and-convert done" | tee -a $CONVERT_LOG
+
+exit $RETVAL

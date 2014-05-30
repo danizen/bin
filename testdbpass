@@ -1,0 +1,9 @@
+#!/usr/bin/perl -w
+use lib '/usr/local/lib64/perl5';
+use NLM::DBPassword qw/getDBPassword/;
+
+my $password2 = getDBPassword('impromptu@librtest');
+print "The password is $password2\n";
+
+
+

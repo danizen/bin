@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# Convert a MARC21 bibliographic file 
+#
+
+# Function similar to perl die
+function die() {
+    echo $* 1>&2
+    exit 1
+}
+  
+# Read system configuration
+[ -r /etc/sysconfig/discovery ] && source /etc/sysconfig/discovery
+
+# Assign default
+
+[ -z "$SOLRMARC_DIR" ] && SOLRMARC_DIR=/usr/nlm/discovery/solrmarc
+[ -z "$CONVERT_TO" ] && CONVERT_TO=/usr/nlm/discovery/data/crawl/bibs
+[ -z "$VGER_DBNAME"] && VGER_DBNAME=libr
+[ -z "$VGER_USER"] && VGER_USER=impromptu
+
+export VGER_DBNAME
+export VGER_USER
+
+# echo these
+echo "Solrmarc directory ............ $SOLRMARC_DIR"
+echo "Generate xml files in ......... $CONVERT_TO"
+echo "Voyager Database .............. $VGER_DBNAME"
+echo "Voyager Username .............. $VGER_USER"
+echo ""
+
+[ $# -eq 1 ] || die "Usage: $0 inputfile"
+
+INPUT=`readlink -e $1`
+OUTDIR=`readlink -e "$CONVERT_TO"`
+BASE=`basename $INPUT`
+cd $SOLRMARC_DIR
+mkdir log >& /dev/null
+java -Xmx512m -Dsolrmarc.main.class="nlm.discovery.marc.NlmMarcHandler" -jar SolrMarc.jar de_config.properties $INPUT --outdir=$OUTDIR --prefix="bib-" 2>&1 | tee log/convert-$BASE.log
+
+touch $CONVERT_TO/recrawl
+

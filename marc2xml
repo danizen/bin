@@ -1,0 +1,4 @@
+#!/bin/bash
+. $HOME/.solr
+java -cp $SOLRMARC_DIR/lib/marc4j-2.5.1.beta.jar org.marc4j.util.MarcXmlDriver $*
+

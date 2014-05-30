@@ -1,0 +1,38 @@
+#!/bin/bash
+# 
+# Read MARC21 authority files and process them into Apache Solr
+
+# Function similar to perl die
+function die() {
+    echo $* 1>&2
+    exit 1
+}
+  
+# Read system configuration
+[ -r /etc/sysconfig/discovery ] && source /etc/sysconfig/discovery
+
+# Assign default
+
+[ -z "$SOLR_URL" ] && SOLR_URL="http://localhost:8008/solr/bibs"
+[ -z "$SOLRMARC_DIR" ] && SOLRMARC_DIR="/usr/nlm/discovery/solrmarc"
+[ -z "$VGER_DBNAME"] && VGER_DBNAME=librtest
+[ -z "$VGER_USER"] && VGER_USER=impromptu
+
+export VGER_DBNAME
+export VGER_USER
+
+# echo these
+echo "SolrMarc directory ............ $SOLRMARC_DIR"
+echo "SOLR_URL ...................... $SOLR_URL" 
+echo "Voyager Database .............. $VGER_DBNAME"
+echo "Voyager Username .............. $VGER_USER"
+echo ""
+
+[ $# -eq 1 ] || die "Usage: $0 inputfile"
+
+INPUT=`readlink -e $1`
+BASE=`basename $INPUT`
+cd $SOLRMARC_DIR
+java -Xmx512m  -Dsolr.hosturl=$SOLR_URL -DentityExpansionLimit=1000000 -jar SolrMarc.jar auth_config.properties $*
+mkdir log >& /dev/null
+mv solrmarc.log log/solrmarc-$BASE.log

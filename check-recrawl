@@ -1,0 +1,18 @@
+#!/bin/bash
+#
+# Check whether a recrawl file has been changed and if so tell Vivisimo to recrawl a corresponding search collection.
+
+MYDIR=`dirname $0`
+[ -z "$INDEX_FROM" ] && INDEX_FROM=/usr/nlm/discovery/data/crawl/bibs
+[ -z "$COLLECTION" ] && COLLECTION=nlm-catalog
+
+RECRAWL="$INDEX_FROM/recrawl"
+LASTCRAWL="$INDEX_FROM/last-crawl-$COLLECTION"
+
+# If recrawl file exists
+if [ $RECRAWL -nt $LASTCRAWL ]; then
+    $MYDIR/de-rest-api --command search-collection-crawler-start "$COLLECTION"
+    (umask 000; touch $LASTCRAWL)
+fi
+
+          

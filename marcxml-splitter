@@ -1,0 +1,73 @@
+#!/usr/bin/env perl
+#
+use strict;
+use warnings;
+
+use Getopt::Long;
+use XML::LibXML;
+use XML::LibXML::Reader;
+
+sub usage {
+    print STDERR "Usage: $0 [-max record-count] [-prefix output-prefix] files [file ...]\n";
+    exit 1;
+}
+
+GetOptions(
+    "max=i" => \my $max,
+    "prefix=s" => \my $prefix) or &usage;
+
+$max || ($max = 5000);
+
+my $localprefix;
+my $count = 0;
+my $curfile;
+my $nfiles = 0;
+
+my $records_xpath = XML::LibXML::Pattern->new('//marc:record', { 'marc' => 'http://www.loc.gov/MARC21/slim' });
+
+foreach my $file (@ARGV) {
+    if ($prefix) {
+        $localprefix = $prefix;
+    } else {
+        $localprefix = $file;
+        $localprefix =~ s/\.xml$//;
+        $count = 0;
+    }
+
+    my $parser = XML::LibXML::Reader->new(location => $file);
+    while ($parser->nextPatternMatch($records_xpath)) {
+        if ($parser->nodeType() == XML_READER_TYPE_ELEMENT) {
+            my $record_as_string = $parser->readOuterXml();
+            if ($count == 0) {
+                $nfiles++;
+                $curfile = $localprefix . "-$nfiles.xml";
+                open CURFILE, ">$curfile" or die "Unable to write $curfile: $!";
+                print CURFILE qq{<?xml version="1.0" encoding="UTF-8"?>\n};
+                print CURFILE qq{<collection xmlns="http://www.loc.gov/MARC21/slim">\n};
+                print STDOUT "Started $curfile\n";
+            } 
+            print CURFILE "  ";
+            print CURFILE $record_as_string;
+            print CURFILE "\n";
+            $count++;
+            if ($count >= $max) {
+                print CURFILE qq{</collection>\n};
+                close CURFILE;
+                print STDOUT "Wrote $count records to $curfile\n";
+                $curfile = undef;
+                $count = 0;
+            }
+        }
+    }
+}
+
+if ($count != 0) {
+    print CURFILE qq{</collection>\n};
+    close CURFILE;
+    print STDOUT "Wrote $count records to $curfile\n";
+    $curfile = undef;
+    $count = 0;
+}
+
+print STDOUT "Wrote $nfiles files\n";
+

@@ -1,0 +1,26 @@
+#!/bin/bash
+#
+# Format and output a converted bibliographic record
+#
+
+# Function similar to perl die
+function die() {
+    echo $* 1>&2
+    exit 1
+}
+  
+# Read system configuration
+[ -r /etc/sysconfig/discovery ] && source /etc/sysconfig/discovery
+
+# Assign default
+
+[ -z "$CONVERT_TO" ] && CONVERT_TO=/usr/nlm/discovery/data/crawl/bibs
+
+while (( $# )) ; do 
+    bib=$1
+    shift;
+
+    let "FIRST_DIR= ${bib} >> 20"
+    let "SECOND_DIR= (${bib} >> 10) & 0x3ff"
+    echo $CONVERT_TO/$FIRST_DIR/$SECOND_DIR/bib-$bib.xml
+done | xargs xmllint -format | less

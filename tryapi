@@ -1,0 +1,72 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use Getopt::Long;
+use File::Basename;
+use LWP::UserAgent;
+use URI;
+
+sub usage {
+    my $progname = basename($0);
+    print STDERR "Usage: $progname [-uri uri] [-username username] [-command command] collection\n";
+    exit 1;
+}
+
+my $baseuri = "http://localhost/vivisimo/cgi-bin/velocity";
+my $username = 'api_user';
+
+GetOptions(
+        "uri=s" => \$baseuri, 
+        "username=s" => \$username, 
+        "command=s" => \my $command,
+        "password=s" => \my $password,
+        "refresh=s" => \my $refresh_type
+        ) || &usage;
+
+int(@ARGV) == 1 || &usage;
+my $collection = $ARGV[0];
+
+$baseuri =~ s{/$}{};
+
+die "Cannot get password" unless $password;
+
+my $ua = LWP::UserAgent->new;
+$ua->agent("DataExplorer CLI client/1.0");
+
+if (not defined($command)) {
+    if (defined($refresh_type)) {
+        $command = 'search-collection-crawler-start';
+    } else {
+        $command = 'search-collection-status';
+    }
+}
+
+my $params = { 
+     'v.function' => $command,
+     'v.app' => 'api-rest',
+     'v.username' => $username,
+     'v.password' => $password,
+     'collection' => $collection
+};
+
+if (defined $refresh_type) {
+    $params->{'type'} = $refresh_type;
+}
+
+my $uri = URI->new($baseuri);
+$uri->query_form($params);
+
+my $req = HTTP::Request->new(GET => $uri);
+my $res = $ua->request($req);
+
+if ($res->is_success) {
+    open STDOUT, "| xmllint -format -";
+    print $res->content;
+    close STDOUT;
+    exit 0;
+} else {
+    print $res->status_line, "\n";
+    exit 1;
+}
+
