@@ -13,16 +13,18 @@ function die() {
 
 # Assign default
 
-[ -z "$SOLR_URL" ] && SOLR_URL="http://localhost:8008/solr/bibs"
-[ -z "$SOLRMARC_DIR" ] && SOLRMARC_DIR="/usr/nlm/discovery/solrmarc"
+[ -z "$SOLR_URL" ] && SOLR_URL="http://localhost:8008/solr/bibframe"
+[ -z "$SOLRMARC_DIR" ] && SOLRMARC_DIR="$HOME/solrmarc"
 [ -z "$VGER_DBNAME"] && VGER_DBNAME=librtest
 [ -z "$VGER_USER"] && VGER_USER=impromptu
+[ -z "$CONFIG_PROPS"] && CONFIG_PROPS=bibframe_config.properties
 
 # echo these
 echo "SolrMarc directory ............ $SOLRMARC_DIR"
 echo "SOLR_URL ...................... $SOLR_URL" 
 echo "Voyager Database .............. $VGER_DBNAME"
 echo "Voyager Username .............. $VGER_USER"
+echo "config.properties ............. $CONFIG_PROPS"
 echo ""
 
 export VGER_DBNAME
@@ -33,7 +35,7 @@ export VGER_USER
 INPUT=`readlink -e $1`
 BASE=`basename $INPUT`
 cd $SOLRMARC_DIR
-java -Xmx512m  -Dsolr.hosturl=$SOLR_URL -DentityExpansionLimit=1000000 -jar SolrMarc.jar config.properties $INPUT
+java -Xmx512m  -Dsolr.hosturl=$SOLR_URL -DentityExpansionLimit=1000000 -jar SolrMarc.jar $CONFIG_PROPS $INPUT
 mkdir log >& /dev/null
 mv solrmarc.log log/solrmarc-$BASE.log
 

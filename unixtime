@@ -1,0 +1,15 @@
+#!/usr/bin/env perl
+use Date::Parse qw/str2time/;
+use Date::Format qw/time2str/;
+
+foreach my $datetime (@ARGV) {
+   if ($datetime =~ /^\d+$/) {
+       print time2str("%Y-%m-%d %H:%M:%S", $datetime)."\n";
+   } else {
+       my $unixtime = str2time($datetime);
+       print "$unixtime\n";
+   }
+}
+        
+
+   
