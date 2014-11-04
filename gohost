@@ -1,0 +1,11 @@
+#!/usr/bin/env perl
+$sec = "\x1b";
+$bel = "\x07";
+
+$hostname = $ARGV[0];
+
+$txt = join(" ", @ARGV);
+print $sec, "];", $txt, $bel;
+
+exec "/usr/bin/ssh", $hostname;
+

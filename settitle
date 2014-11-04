@@ -1,0 +1,7 @@
+#!/usr/bin/env perl
+$sec = "\x1b";
+$bel = "\x07";
+
+$txt = join(" ", @ARGV);
+print $sec, "];", $txt, $bel;
+
