@@ -1,0 +1,36 @@
+#!/bin/env python
+"""
+Description: Copy Django standard template from standard path to target path
+"""
+import os
+import sys
+import shutil
+
+sys.path = sys.path[1:]
+import django
+prog_name = os.path.basename(sys.argv[0])
+
+if (len(sys.argv) < 3):
+    print("Usage: "+prog_name+" templatedir template [ template ... ]")
+    sys.exit(1)
+
+target_templates_path = sys.argv[1]
+if (not os.path.isdir(target_templates_path)):
+    print("Error: "+target_templates_path+": not a directory")
+    sys.exit(2)
+
+django_templates_path = django.__path__[0]
+
+for x in range(2, len(sys.argv)):
+    template_path = sys.argv[x]
+    original_path = os.path.join(django_templates_path, "contrib/admin/templates", template_path)
+    target_path = os.path.join(target_templates_path, template_path)
+    if (not os.path.isfile(original_path)):
+        print("Error: "+original_path+": not found")
+        sys.exit(3)
+    if (os.path.isfile(target_path)):
+        print("Error: "+target_path+": already exists, remove it first")
+        sys.exit(4)
+    shutil.copyfile(original_path, target_path)
+
+sys.exit(0)
