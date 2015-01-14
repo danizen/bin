@@ -1,0 +1,16 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]; then 
+  echo "Usage: $0 <assetpath>" 1>&2
+  exit 1
+fi
+
+ASSET_PATH=$1
+ASSET_DIR=`dirname $ASSET_PATH`
+ASSET_FILE=`basename $ASSET_FILE`
+
+mkdir -p $ASSET_DIR >& /dev/null
+pushd $ASSET_DIR
+wget "http://www.nlm.nih.gov/medlineplus/$ASSET_PATH"
+popd
+
