@@ -1,0 +1,12 @@
+#!/bin/bash
+if [[ -f $HOME/.sshenv ]]; then
+    source $HOME/.sshenv
+    DEFAULT_PID=$((`cat /proc/sys/kernel/pid_max`+1)) 
+    kill -0 ${SSH_AGENT_PID:-$DEFAULT_PID} 2>/dev/null
+    [[ $? -eq 0 ]] && exit 0
+fi
+
+(umask 077; ssh-agent > $HOME/.sshenv)
+source $HOME/.sshenv
+ssh-add
+
