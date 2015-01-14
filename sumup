@@ -1,0 +1,17 @@
+#!/bin/env perl
+use strict;
+use warnings;
+
+use bigint;
+
+my $count = 0;
+my $total = 0;
+while (<>) {
+   if (/^\s*(\d+)/) {
+        $count++;
+        $total += int($1);
+    }
+}
+print "count $count\n";
+print "total $total\n";
+
