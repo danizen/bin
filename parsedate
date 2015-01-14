@@ -1,0 +1,8 @@
+#!/usr/bin/env perl
+#
+use Date::Parse;
+
+$unixtimestamp = str2time(join(' ', @ARGV));
+
+print "$unixtimestamp\n";
+
