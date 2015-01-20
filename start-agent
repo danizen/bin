@@ -1,8 +1,12 @@
-#!/bin/bash
+# This really needs to be sourced and there is no reason
+# why it needs to be executable.   I have it executable
+# so that dircolors can see it's a script.
 
-if [[ -f $HOME/.sshenv ]]; then
+(umask 077; mkdir -p $HOME/.sshenv >& /dev/null)
+SSHENV_FILE=$HOME/.sshenv/`hostname -s`
+if [[ -f $SSHENV_FILE ]]; then
     DEFAULT_PID=$((`cat /proc/sys/kernel/pid_max`+1)) 
-    source $HOME/.sshenv 1>/dev/null
+    source $SSHENV_FILE 1>/dev/null
     kill -0 ${SSH_AGENT_PID:-$DEFAULT_PID} 2>/dev/null
     if [[ $? -eq 0 ]]; then 
        echo "Agent is already running $SSH_AGENT_PID"
@@ -14,8 +18,8 @@ else
 fi
 
 if [[ $SSH_AGENT_PID -eq 0 ]]; then
-    (umask 077; ssh-agent > $HOME/.sshenv)
-    source $HOME/.sshenv
+    (umask 077; ssh-agent > $SSHENV_FILE)
+    source $SSHENV_FILE
     ssh-add
 fi
 

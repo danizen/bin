@@ -1,0 +1,58 @@
+#!/bin/env python
+"""
+Description: Copy one file hierarchy to another, deeply, removing the UTF-8 BOM if present
+"""
+import os
+import sys
+
+prog_name = os.path.basename(sys.argv[0])
+
+if (len(sys.argv) != 3):
+    print("Usage: "+prog_name+" <source_path> <target_path>")
+    sys.exit(1)
+
+source_path = sys.argv[1]
+target_path = sys.argv[2]
+
+if not os.path.exists(source_path):
+    print("%s: source path is not a file or directory" % source_path)
+    sys.exit(2)
+
+if not os.path.exists(target_path) and not os.path.exists(os.path.basename(target_path)):
+    print("%s: target path could not be a file or directory" % target_path)
+    sys.exit(2)
+
+def copy_file_remove_bom(srcpath, tgtpath):
+    inf = open(srcpath, "rb")
+    outf = open(tgtpath, "wb")
+    try: 
+        data = inf.read(-1)
+        if (len(data) > 3 and data[0] == '\xEF' and data[1] == '\xBB' and data[2] == '\xBF'):
+            data = data[3:]
+        outf.write(data)
+    finally:
+        inf.close()
+        outf.close()
+
+if os.path.isfile(source_path) and os.path.isdir(target_path):
+    real_target_path = os.path.join(target_path, os.path.basename(source_path))
+    copy_file_remove_bom(source_path, real_target_path)
+elif os.path.isdir(source_path) and os.path.isdir(target_path):
+
+    prefix_len = len(source_path)
+    for root, dirs, files in os.walk(source_path):
+        if len(root) == prefix_len:
+            newroot = target_path
+        else:
+            newroot = os.path.join(target_path, root[prefix_len:])
+        for dir in dirs:
+            os.mkdir(os.path.join(newroot, dir))
+        for name in files:
+            copy_file_remove_bom(os.path.join(root, name), os.path.join(newroot, name))
+elif os.path.isfile(source_path) and os.path.isdir(os.path.dirname(target_path)):
+    copy_file_remove_bom(source_path, target_path)
+else:
+    print("invalid combination of source_path and target_path")
+    sys.exit(1)
+
+sys.exit(0)
