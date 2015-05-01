@@ -1,0 +1,11 @@
+#!/bin/bash
+find . -type f \
+ -name '*.erb' \
+ -o -name '*.rb' \
+ -o -name '*.js' \
+ -o -name '*.js.coffee' \
+ -o -name '*.css' \
+ -o -name '*.css.scss' \
+ | grep -v '/vendor/' \
+ | xargs wc -l
+

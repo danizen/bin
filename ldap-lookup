@@ -1,0 +1,120 @@
+#!/usr/bin/env perl
+# Lookup users and groups in LDAP
+# 
+# Reads a file $HOME/.ldaploginrc to get an ordered list of domain controllers
+# to try, the bind DN, the base DN for search, and asks for the password.
+# 
+# $HOME/.ldaploginrc is in JSON format, here's an example:
+#
+# 
+# {
+#   "basedn": "DC=example,DC=com",
+#   "binddn": "CN=danny,CN=Users,DC=example,DC=com",
+#   "dclist": [ 
+#     "dc1.example.com",
+#     "dc2.example.com",
+#     "dc3.example.com" ]
+# }
+#
+use strict;
+use warnings;
+use Net::LDAP;
+use Getopt::Long;
+use File::Basename qw/basename/;
+use JSON;
+
+sub usage {
+    my $PROGNAME = basename($0);
+    print STDERR "Usage: $PROGNAME [options] {--group|--user name} [ {--group|--user name} .. ]";
+    print STDERR qq{Options:
+        --dc hostname ................ Domain Controller hostname
+        --basedn baseDN .............. Base DN for search for objectclass=group or objectclass=user
+        --binddn bindDN .............. Bind DN (you will be prompted for the password
+    };
+    exit 1;
+}
+
+my @groups = ();
+my @users = ();
+
+GetOptions("dc=s@" => \my $dclist,
+            "basedn=s" => \my $basedn,
+            "binddn=s" => \my $binddn,
+            "group=s" => \@groups,
+            "user=s" => \@users) || usage;
+
+my $ldap;
+
+my $defaults = {};
+my $json = JSON->new();
+my $rcfilename = "$ENV{HOME}/.ldaploginrc";
+if (-f $rcfilename) {
+    open(RCFILE, '<', "$rcfilename") or die "$rcfilename: $@";
+    my @lines;
+    while (<RCFILE>) {
+        chomp;
+        push @lines, $_;
+    }
+    my $contents = join('', @lines);
+    close RCFILE;
+    eval {
+        $defaults = $json->decode($contents);
+    };
+    die("$rcfilename: $@") if $@;
+}
+
+$basedn || ($basedn = $defaults->{'basedn'});
+$binddn || ($binddn = $defaults->{'binddn'});
+($dclist && int(@$dclist)>0) || ($dclist = $defaults->{'dclist'});
+
+unless ($basedn && $binddn && $dclist && int(@$dclist)>0) {
+    print STDERR "You must specify LDAP parameters through $rcfilename or command-line options.\n";
+    exit 1;
+}
+
+my $dc;
+foreach my $adc (@$dclist) {
+    $ldap = Net::LDAP->new($adc, port => 389);
+    if ($ldap) {
+        $dc = $adc;
+        last;
+    }
+}
+
+unless ($ldap) {
+    print STDERR "error: unable to connect to domain controller\n";
+    exit 1;
+}
+print "Connected to $dc\n\n";
+
+print "Password: ";
+system('/bin/stty -echo');
+my $password = <>;
+system('/bin/stty echo');
+print "\n";
+chomp $password;
+
+my $mesg = $ldap->bind($binddn, password => $password);
+if ($mesg->is_error()) {
+    print STDERR "error: login as $binddn: ".$mesg->error_desc()."\n";
+    exit 1;
+}
+
+unless (int(@groups)>0 || int(@users)>0) {
+    $ldap->unbind();
+    print STDERR "No groups or users specified\n";
+    exit 1;
+}
+
+foreach my $group (@groups) {
+    print "Search for $group\n";
+}
+
+foreach my $user (@users) {
+    print "Search for $user\n";
+}
+
+exit 0;
+
+
+
