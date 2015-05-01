@@ -25,11 +25,13 @@ use JSON;
 
 sub usage {
     my $PROGNAME = basename($0);
-    print STDERR "Usage: $PROGNAME [options] {--group|--user name} [ {--group|--user name} .. ]";
+    print STDERR "Usage: $PROGNAME [options] query [query ...]";
     print STDERR qq{Options:
         --dc hostname ................ Domain Controller hostname
         --basedn baseDN .............. Base DN for search for objectclass=group or objectclass=user
         --binddn bindDN .............. Bind DN (you will be prompted for the password
+        --groups ..................... filter on objects that are groups
+        --users ...................... filter on objects that are users
     };
     exit 1;
 }
@@ -40,8 +42,8 @@ my @users = ();
 GetOptions("dc=s@" => \my $dclist,
             "basedn=s" => \my $basedn,
             "binddn=s" => \my $binddn,
-            "group=s" => \@groups,
-            "user=s" => \@users) || usage;
+            "groups" => \my $groups,
+            "users" => \my $users) || usage;
 
 my $ldap;
 
@@ -72,6 +74,11 @@ unless ($basedn && $binddn && $dclist && int(@$dclist)>0) {
     exit 1;
 }
 
+if ($users && $groups) {
+    print STDERR "You may only filter on one of users or groups\n";
+    exit 1;
+}
+
 my $dc;
 foreach my $adc (@$dclist) {
     $ldap = Net::LDAP->new($adc, port => 389);
@@ -89,7 +96,7 @@ print "Connected to $dc\n\n";
 
 print "Password: ";
 system('/bin/stty -echo');
-my $password = <>;
+my $password = <STDIN>;
 system('/bin/stty echo');
 print "\n";
 chomp $password;
@@ -100,20 +107,29 @@ if ($mesg->is_error()) {
     exit 1;
 }
 
-unless (int(@groups)>0 || int(@users)>0) {
+unless (int(@ARGV)>0) {
     $ldap->unbind();
-    print STDERR "No groups or users specified\n";
+    print STDERR "No query specified: nothing to do\n";
     exit 1;
 }
 
-foreach my $group (@groups) {
-    print "Search for $group\n";
+foreach my $query (@ARGV) {
+    if ($users) {
+        $query = "(&(objectclass=user)(sAMAccountName=$query))";
+    } elsif ($groups) {
+        $query = "(&(objectclass=group)(sAMAccountName=$query))";
+    }
+    $mesg = $ldap->search(base => $basedn, filter => $query);
+    if ($mesg->code) {
+        print STDERR "search $query: ".$mesg->code.": ".$mesg->error."\n";
+    }
+    print "Results for $query:\n\n";
+    foreach my $entry ($mesg->entries) {
+        $entry->dump;
+    }
 }
 
-foreach my $user (@users) {
-    print "Search for $user\n";
-}
-
+$ldap->unbind;
 exit 0;
 
 
