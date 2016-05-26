@@ -30,23 +30,20 @@ sub usage {
         --dc hostname ................ Domain Controller hostname
         --basedn baseDN .............. Base DN for search for objectclass=group or objectclass=user
         --binddn bindDN .............. Bind DN (you will be prompted for the password
-        --fields fieldnames .......... Blank will dump all fields, if there is a list only these are printed
         --groups ..................... filter on objects that are groups
         --users ...................... filter on objects that are users
-        --computers .................. filter on objects that are computers
     };
     exit 1;
 }
 
-my ($users, $groups, $computers) = (0, 0, 0);
+my @groups = ();
+my @users = ();
 
 GetOptions("dc=s@" => \my $dclist,
             "basedn=s" => \my $basedn,
             "binddn=s" => \my $binddn,
-            "groups" => \$groups,
-            "computers" => \$computers,
-            "fields=s" => \my $fieldnames,
-            "users" => \$users) || usage;
+            "groups" => \my $groups,
+            "users" => \my $users) || usage;
 
 my $ldap;
 
@@ -72,16 +69,13 @@ $basedn || ($basedn = $defaults->{'basedn'});
 $binddn || ($binddn = $defaults->{'binddn'});
 ($dclist && int(@$dclist)>0) || ($dclist = $defaults->{'dclist'});
 
-my @fields = ();
-$fieldnames && (@fields = split(/[,\s]+/, $fieldnames));
-
 unless ($basedn && $binddn && $dclist && int(@$dclist)>0) {
     print STDERR "You must specify LDAP parameters through $rcfilename or command-line options.\n";
     exit 1;
 }
 
-if (($users + $groups + $computers) > 1) {
-    print STDERR "You may only filter on one of users, groups, or computers\n";
+if ($users && $groups) {
+    print STDERR "You may only filter on one of users or groups\n";
     exit 1;
 }
 
@@ -124,31 +118,14 @@ foreach my $query (@ARGV) {
         $query = "(&(objectclass=user)(sAMAccountName=$query))";
     } elsif ($groups) {
         $query = "(&(objectclass=group)(sAMAccountName=$query))";
-    } elsif ($computers) {
-        $query = "(&(objectclass=computer)(cn=$query))";
     }
-
     $mesg = $ldap->search(base => $basedn, filter => $query);
     if ($mesg->code) {
         print STDERR "search $query: ".$mesg->code.": ".$mesg->error."\n";
     }
     print "Results for $query:\n\n";
     foreach my $entry ($mesg->entries) {
-        if (int(@fields) > 0) {
-            foreach my $field (@fields) {
-                my $first = 1;
-                foreach my $value ($entry->get_value($field)) {
-                    if ($first) {
-                        print STDOUT (sprintf("%-30s: ", $field).$value."\n");
-                        $first = 0;
-                    } else {
-                        print STDOUT (sprintf("%-30s  ", " ").$value."\n");
-                    }
-                }
-            }
-        } else {
-            $entry->dump;
-        }
+        $entry->dump;
     }
 }
 

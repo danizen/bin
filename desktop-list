@@ -1,10 +1,7 @@
 #!/usr/bin/env perl
-# Lookup users and groups in LDAP
+# Lookup all desktops in NLM that are registered with NLM Active Directory
 # 
-# Reads a file $HOME/.ldaploginrc to get an ordered list of domain controllers
-# to try, the bind DN, the base DN for search, and asks for the password.
-# 
-# $HOME/.ldaploginrc is in JSON format, here's an example:
+# $HOME/.desktoprc is in JSON format, here's an example:
 #
 # 
 # {
@@ -31,9 +28,6 @@ sub usage {
         --basedn baseDN .............. Base DN for search for objectclass=group or objectclass=user
         --binddn bindDN .............. Bind DN (you will be prompted for the password
         --fields fieldnames .......... Blank will dump all fields, if there is a list only these are printed
-        --groups ..................... filter on objects that are groups
-        --users ...................... filter on objects that are users
-        --computers .................. filter on objects that are computers
     };
     exit 1;
 }
@@ -43,16 +37,13 @@ my ($users, $groups, $computers) = (0, 0, 0);
 GetOptions("dc=s@" => \my $dclist,
             "basedn=s" => \my $basedn,
             "binddn=s" => \my $binddn,
-            "groups" => \$groups,
-            "computers" => \$computers,
-            "fields=s" => \my $fieldnames,
-            "users" => \$users) || usage;
+            "fields=s" => \my $fieldnames) || usage;
 
 my $ldap;
 
 my $defaults = {};
 my $json = JSON->new();
-my $rcfilename = "$ENV{HOME}/.ldaploginrc";
+my $rcfilename = "$ENV{HOME}/.desktoprc";
 if (-f $rcfilename) {
     open(RCFILE, '<', "$rcfilename") or die "$rcfilename: $@";
     my @lines;
@@ -72,7 +63,7 @@ $basedn || ($basedn = $defaults->{'basedn'});
 $binddn || ($binddn = $defaults->{'binddn'});
 ($dclist && int(@$dclist)>0) || ($dclist = $defaults->{'dclist'});
 
-my @fields = ();
+my @fields = ('cn', 'description');
 $fieldnames && (@fields = split(/[,\s]+/, $fieldnames));
 
 unless ($basedn && $binddn && $dclist && int(@$dclist)>0) {
@@ -113,42 +104,22 @@ if ($mesg->is_error()) {
     exit 1;
 }
 
-unless (int(@ARGV)>0) {
-    $ldap->unbind();
-    print STDERR "No query specified: nothing to do\n";
-    exit 1;
+my $query = "objectclass=computer";
+$mesg = $ldap->search(base => $basedn, filter => $query);
+if ($mesg->code) {
+    print STDERR "search $query: ".$mesg->code.": ".$mesg->error."\n";
 }
-
-foreach my $query (@ARGV) {
-    if ($users) {
-        $query = "(&(objectclass=user)(sAMAccountName=$query))";
-    } elsif ($groups) {
-        $query = "(&(objectclass=group)(sAMAccountName=$query))";
-    } elsif ($computers) {
-        $query = "(&(objectclass=computer)(cn=$query))";
-    }
-
-    $mesg = $ldap->search(base => $basedn, filter => $query);
-    if ($mesg->code) {
-        print STDERR "search $query: ".$mesg->code.": ".$mesg->error."\n";
-    }
-    print "Results for $query:\n\n";
-    foreach my $entry ($mesg->entries) {
-        if (int(@fields) > 0) {
-            foreach my $field (@fields) {
-                my $first = 1;
-                foreach my $value ($entry->get_value($field)) {
-                    if ($first) {
-                        print STDOUT (sprintf("%-30s: ", $field).$value."\n");
-                        $first = 0;
-                    } else {
-                        print STDOUT (sprintf("%-30s  ", " ").$value."\n");
-                    }
-                }
-            }
-        } else {
-            $entry->dump;
+print STDOUT join(',', @fields)."\n";
+foreach my $entry ($mesg->entries) {
+    if (int(@fields) > 0) {
+        my $results = [];
+        foreach my $field (@fields) {
+            my $value = $entry->get_value($field);
+            push @$results, $value;
         }
+        print STDOUT join(',', @$results)."\n";
+    } else {
+        $entry->dump;
     }
 }
 
