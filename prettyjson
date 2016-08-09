@@ -6,7 +6,9 @@ use JSON::XS;
 
 my $coder = JSON::XS->new->pretty->canonical;
 
+my $scarf;
 while (<>) {
-    my $ref = $coder->decode($_);
-    print STDOUT $coder->encode($ref);
+    $scarf .= $_;
 }
+my $ref = $coder->decode($scarf);
+print STDOUT $coder->encode($ref);

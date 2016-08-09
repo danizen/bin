@@ -1,0 +1,130 @@
+#!/usr/bin/env perl
+# Lookup all desktops in NLM that are registered with NLM Active Directory
+# 
+# $HOME/.desktoprc is in JSON format, here's an example:
+#
+# 
+# {
+#   "basedn": "DC=example,DC=com",
+#   "binddn": "CN=danny,CN=Users,DC=example,DC=com",
+#   "dclist": [ 
+#     "dc1.example.com",
+#     "dc2.example.com",
+#     "dc3.example.com" ]
+# }
+#
+use strict;
+use warnings;
+use Net::LDAP;
+use Getopt::Long;
+use File::Basename qw/basename/;
+use JSON;
+
+sub usage {
+    my $PROGNAME = basename($0);
+    print STDERR "Usage: $PROGNAME [options] query [query ...]";
+    print STDERR qq{Options:
+        --dc hostname ................ Domain Controller hostname
+        --basedn baseDN .............. Base DN for search for objectclass=group or objectclass=user
+        --binddn bindDN .............. Bind DN (you will be prompted for the password
+        --fields fieldnames .......... Blank will dump all fields, if there is a list only these are printed
+    };
+    exit 1;
+}
+
+my ($users, $groups, $computers) = (0, 0, 0);
+
+GetOptions("dc=s@" => \my $dclist,
+            "basedn=s" => \my $basedn,
+            "binddn=s" => \my $binddn,
+            "fields=s" => \my $fieldnames) || usage;
+
+my $ldap;
+
+my $defaults = {};
+my $json = JSON->new();
+my $rcfilename = "$ENV{HOME}/.desktoprc";
+if (-f $rcfilename) {
+    open(RCFILE, '<', "$rcfilename") or die "$rcfilename: $@";
+    my @lines;
+    while (<RCFILE>) {
+        chomp;
+        push @lines, $_;
+    }
+    my $contents = join('', @lines);
+    close RCFILE;
+    eval {
+        $defaults = $json->decode($contents);
+    };
+    die("$rcfilename: $@") if $@;
+}
+
+$basedn || ($basedn = $defaults->{'basedn'});
+$binddn || ($binddn = $defaults->{'binddn'});
+($dclist && int(@$dclist)>0) || ($dclist = $defaults->{'dclist'});
+
+my @fields = ('cn', 'description');
+$fieldnames && (@fields = split(/[,\s]+/, $fieldnames));
+
+unless ($basedn && $binddn && $dclist && int(@$dclist)>0) {
+    print STDERR "You must specify LDAP parameters through $rcfilename or command-line options.\n";
+    exit 1;
+}
+
+if (($users + $groups + $computers) > 1) {
+    print STDERR "You may only filter on one of users, groups, or computers\n";
+    exit 1;
+}
+
+my $dc;
+foreach my $adc (@$dclist) {
+    $ldap = Net::LDAP->new($adc, port => 389);
+    if ($ldap) {
+        $dc = $adc;
+        last;
+    }
+}
+
+unless ($ldap) {
+    print STDERR "error: unable to connect to domain controller\n";
+    exit 1;
+}
+print "Connected to $dc\n\n";
+
+print "Password: ";
+system('/bin/stty -echo');
+my $password = <STDIN>;
+system('/bin/stty echo');
+print "\n";
+chomp $password;
+
+my $mesg = $ldap->bind($binddn, password => $password);
+if ($mesg->is_error()) {
+    print STDERR "error: login as $binddn: ".$mesg->error_desc()."\n";
+    exit 1;
+}
+
+my $query = "objectclass=computer";
+$mesg = $ldap->search(base => $basedn, filter => $query);
+if ($mesg->code) {
+    print STDERR "search $query: ".$mesg->code.": ".$mesg->error."\n";
+}
+print STDOUT join(',', @fields)."\n";
+foreach my $entry ($mesg->entries) {
+    if (int(@fields) > 0) {
+        my $results = [];
+        foreach my $field (@fields) {
+            my $value = $entry->get_value($field);
+            push @$results, $value;
+        }
+        print STDOUT join(',', @$results)."\n";
+    } else {
+        $entry->dump;
+    }
+}
+
+$ldap->unbind;
+exit 0;
+
+
+
