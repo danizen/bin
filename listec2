@@ -1,0 +1,36 @@
+#!/bin/bash
+
+OUTPUT=json
+QUERY="Reservations[].Instances[].{InstanceId: InstanceId, PublicIpAddress: PublicIpAddress, PrivateIpAddress: PrivateIpAddress}"
+
+while getopts 'o:rq:' opt; do
+  case $opt in
+    o) OUTPUT="$OPTARG" ;;
+    r) QUERY="Reservations" ;;
+    q) QUERY="$OPTARG" ;;
+    \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;; 
+    :) echo "OPTION -$OPTARG requires an argument" >&2; exit 1 ;;
+  esac
+done
+
+shift $((OPTIND-1))
+
+if [[ $# -ne 1 && $# -ne 0 ]]; then
+  echo "Usage: $0 [-o output] [-r] [-q query] name" 1>&2
+  exit 1
+fi
+
+if [[ $# -eq 1 ]]; then
+  NAME="$1"
+  NAMEFILTERS="Name=tag-key,Values=Name Name=tag-value,Values=$NAME"
+else
+  NAMEFILTERS=""
+fi
+
+aws ec2 describe-instances \
+  --filters \
+   $NAMEFILTERS \
+   'Name=instance-state-name,Values=running' \
+  --query "$QUERY" \
+  --output $OUTPUT
+
