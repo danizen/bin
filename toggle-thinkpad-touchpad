@@ -1,0 +1,12 @@
+#!/bin/bash
+
+read TPDevice <<< $(xinput | sed -nre '/Synaptics/ s/.*id=([0-9]+).*/\1/p')
+state=$(xinput list-props "$TPDevice" | grep "Device Enabled" | grep -o "[01]$")
+if [[ "$state" = "1" ]]; then
+    echo "Touchpad enabled, disabling..."
+    xinput --disable "$TPDevice" && notify-send -i input-touchpad "Touchpad" "Disabled"
+else
+    echo "Touchpad disabled, enabling..."
+    xinput --enable "$TPDevice" && notify-send -i input-touchpad "Touchpad" "Enabled"
+fi
+
