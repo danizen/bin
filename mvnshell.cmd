@@ -1,5 +1,21 @@
 @echo off
-if exist "target\lib" goto runshell
-call mvn dependency:copy-dependencies
-:runshell
-jshell --class-path target\classes;target\test-classes;target\lib\* %*
+
+SET NARGS=0
+FOR %%x in (%*) DO SET /a NARGS += 1
+
+IF EXIST "target\lib" GOTO RUNSHELL
+CALL mvn dependency:copy-dependencies
+
+:RUNSHELL
+IF %NARGS% NEQ 0 (
+	jshell --class-path target\classes;target\test-classes;target\lib\* %*
+	GOTO END
+)
+
+IF EXIST "setup.jsh" (
+	jshell --class-path target\classes;target\test-classes;target\lib\* -start setup.jsh
+	GOTO END
+)
+
+jshell --class-path target\classes;target\test-classes;target\lib\*
+:END
