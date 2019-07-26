@@ -10,7 +10,7 @@ EXIT /B 1
 :HAVEARGS
 SET PROFILE=%1
 SET TEMPFILE=%TEMP%\awscreds-out.cmd
-CALL getawscreds -p %PROFILE% -o %TEMPFILE%
+CALL getawscreds --shell=cmd -p %PROFILE% -o %TEMPFILE%
 
 IF EXIST %TEMPFILE% GOTO HAVEFILE
 ECHO getawscreds did not produce an output file
