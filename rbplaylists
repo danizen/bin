@@ -5,24 +5,55 @@
 #      
 #
 import os
+import shutil
 import sys
 from argparse import ArgumentParser, ArgumentError
 from lxml import etree
+from six.moves.urllib.parse import unquote
 
-DFLT_PLAYLISTS_PATH = os.path.join(os.environ['HOME'], '.share', 'local', 'rhythmbox', 'playlists.xml') 
-
+DFLT_PLAYLISTS_PATH = os.path.join(os.environ['HOME'], '.local', 'share', 'rhythmbox', 'playlists.xml') 
 
 
 def list_playlists_command(opts):
     tree = etree.parse(opts.path)
-    for element in tree.xpath('/rhytmbox-playlists/playlist'):
+    for element in tree.xpath('/rhythmdb-playlists/playlist'):
         playlist_name = element.get('name')
-        print(playlist_name)
+        print('"{}":'.format(playlist_name))
+        playlist_type = element.get('type')
+        print('  {}'.format(playlist_type))
+    return 0
 
 
 def export_playlist_command(opts):
-    print('export-playlist-command: Not yet implemented')
-
+    tree = etree.parse(opts.path)
+    path_expr = "/rhythmdb-playlists/playlist[@name='{}']".format(opts.playlist)
+    candidates = tree.xpath(path_expr)
+    if len(candidates) == 0:
+        sys.stderr.write('Playlist not found\n')
+        return 1
+    if len(candidates) > 1:
+        sys.stderr.write('Multiple playlists found\n')
+        return 1
+    element = candidates[0]
+    if element.get('type') != 'static':
+        sys.stderr.write('Only static playlists are supported\n')
+        return 1
+    locations = element.xpath('./location')
+    if len(locations) == 0:
+        sys.stderr.write('Playlist is empty\n')
+        return 1
+    if not os.path.isdir(opts.output):
+        sys.stderr.write('{}: must be a directory\n'.format(opts.output))
+        return 1
+    playlist_path = os.path.join(opts.output, opts.playlist)
+    os.mkdir(playlist_path)
+    for location_element in locations:
+        path = location_element.text
+        if path.startswith('file://'):
+            path = path[7:]
+        path = unquote(path)
+        shutil.copy(path, playlist_path)        
+    return 0
 
 def create_parser(prog_name):
     parser = ArgumentParser(prog=prog_name, description='Copy a Rhythmbox playlist to another folder')
