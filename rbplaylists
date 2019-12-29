@@ -46,14 +46,20 @@ def export_playlist_command(opts):
         sys.stderr.write('{}: must be a directory\n'.format(opts.output))
         return 1
     playlist_path = os.path.join(opts.output, opts.playlist)
-    os.mkdir(playlist_path)
+    try:
+        os.mkdir(playlist_path)
+    except OSError as e:
+        pass
     for location_element in locations:
         path = location_element.text
         if path.startswith('file://'):
             path = path[7:]
         path = unquote(path)
-        shutil.copy(path, playlist_path)        
+        basename = os.path.basename(path)
+        if not os.path.isfile(os.path.join(playlist_path, basename)):
+            shutil.copy(path, playlist_path)
     return 0
+
 
 def create_parser(prog_name):
     parser = ArgumentParser(prog=prog_name, description='Copy a Rhythmbox playlist to another folder')
