@@ -1,0 +1,53 @@
+#!/usr/bin/python
+#
+# Desciption: List and Export Rhythmbox playlists to an external folder
+# Usage:
+#      
+#
+import os
+import sys
+from argparse import ArgumentParser, ArgumentError
+from lxml import etree
+
+DFLT_PLAYLISTS_PATH = os.path.join(os.environ['HOME'], '.share', 'local', 'rhythmbox', 'playlists.xml') 
+
+
+
+def list_playlists_command(opts):
+    tree = etree.parse(opts.path)
+    for element in tree.xpath('/rhytmbox-playlists/playlist'):
+        playlist_name = element.get('name')
+        print(playlist_name)
+
+
+def export_playlist_command(opts):
+    print('export-playlist-command: Not yet implemented')
+
+
+def create_parser(prog_name):
+    parser = ArgumentParser(prog=prog_name, description='Copy a Rhythmbox playlist to another folder')
+    parser.add_argument('--path', metavar='PATH', default=DFLT_PLAYLISTS_PATH, 
+                        help='Change the path where this utility looks for the playlists')
+
+    sp = parser.add_subparsers(title='command(s)')
+    list_parser = sp.add_parser('list', help='List playlists found in the playlists file')
+    list_parser.set_defaults(func=list_playlists_command)
+
+    export_parser = sp.add_parser('export', help='Export a playlist to a different folder')
+    export_parser.set_defaults(func=export_playlist_command)
+    export_parser.add_argument('playlist', metavar='NAME', help='The playlist name')
+    export_parser.add_argument('output', metavar='OUTPUT_PATH', help='The output path')
+    return parser
+
+
+def main():
+    parser = create_parser(sys.argv[0])
+    opts = parser.parse_args(sys.argv[1:])
+    if not hasattr(opts, 'func'):
+        parser.print_help()
+        return 1
+    opts.func(opts)
+
+
+if __name__ == '__main__':
+    main()
