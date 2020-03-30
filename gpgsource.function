@@ -4,7 +4,7 @@
 
 function gpgsource() {
     if [ $# -ne 1 ]; then
-        echo "Usage: gpgeval <path_to_encrypted_script>" >&2
+        echo "Usage: gpgsource <path_to_encrypted_script>" >&2
         return 1
     elif [ ! -f "$1" ]; then
         echo "$1: file not found" >&2
