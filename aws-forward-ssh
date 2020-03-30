@@ -1,0 +1,23 @@
+#!/bin/bash
+
+if [[ $# -ne 2 ]]; then
+	echo "Usage: aws-session <name> <localport>" 1>&2
+	exit 1
+fi
+
+NAME=$1
+PORT=$2
+
+
+INST_ID=$(aws ec2 describe-instances \
+	--filters "Name=tag:Name,Values=${NAME}" "Name=instance-state-name,Values=running" \
+	--query Reservations[].Instances[].InstanceId \
+	--output text)
+
+echo "Forwarding local port $PORT to port 22 on $INST_ID..."
+
+aws ssm start-session \
+	--target $INST_ID \
+  	--document-name AWS-StartPortForwardingSession \
+	--parameters "{\"portNumber\":[\"22\"],\"localPortNumber\":[\"${PORT}\"]}"
+
