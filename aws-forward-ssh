@@ -8,11 +8,20 @@ fi
 NAME=$1
 PORT=$2
 
+if [[ ! "$PORT" -ge 1024 ]]; then
+	echo "$PORT: should be a number greater than or equal to 1024" 1>&2
+	exit 1
+fi
 
 INST_ID=$(aws ec2 describe-instances \
 	--filters "Name=tag:Name,Values=${NAME}" "Name=instance-state-name,Values=running" \
 	--query Reservations[].Instances[].InstanceId \
-	--output text)
+	--output text | head -1)
+
+if [[ -z "$INST_ID" ]]; then
+	echo "$NAME: No running instances found with this name" 1>&2
+	exit 1
+fi
 
 echo "Forwarding local port $PORT to port 22 on $INST_ID..."
 
