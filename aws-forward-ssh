@@ -1,32 +1,60 @@
 #!/bin/bash
 
-if [[ $# -ne 2 ]]; then
-	echo "Usage: aws-session <name> <localport>" 1>&2
+function usage() {
+	echo "Usage: aws-forward [-p <PORT> ] [-l <LOCAL_PORT>] <name>" 1>&2
+	exit 1
+
+}
+
+PORT=22
+LOCAL_PORT=8822
+
+while getopts "p:l:" opt; do
+	case $opt in
+		p) PORT=$OPTARG ;;
+		l) LOCAL_PORT=$OPTARG ;;
+		\?) echo "Invalid option: $OPTARG" 1>&2; usage ;;
+		:) echo "Invalid option: $OPTARG requires an argument" 1>&2; usage ;;
+	esac
+done
+shift $((OPTIND -1))
+
+if [[ $# -ne 1 ]]; then
+	echo "Usage: aws-session [-p <PORT> ] [-l <LOCAL_PORT>] <name>" 1>&2
 	exit 1
 fi
 
 NAME=$1
-PORT=$2
 
-if [[ ! "$PORT" -ge 1024 ]]; then
-	echo "$PORT: should be a number greater than or equal to 1024" 1>&2
+if [[ ! "$LOCAL_PORT" -ge 1024 ]]; then
+	echo "$LOCAL_PORT: should be a number greater than or equal to 1024" 1>&2
 	exit 1
 fi
 
-INST_ID=$(aws ec2 describe-instances \
-	--filters "Name=tag:Name,Values=${NAME}" "Name=instance-state-name,Values=running" \
-	--query Reservations[].Instances[].InstanceId \
-	--output text | head -1)
+if [[ "$NAME" =~ ^i-[0-9a-f]+$ ]]; then
+	INST_ID=$NAME
+else
+	INST_ID=$(aws ec2 describe-instances \
+		--filters "Name=tag:Name,Values=${NAME}" "Name=instance-state-name,Values=running" \
+		--query Reservations[].Instances[].InstanceId \
+		--output text)
 
-if [[ -z "$INST_ID" ]]; then
-	echo "$NAME: No running instances found with this name" 1>&2
-	exit 1
+	ICOUNT=$(echo $INST_ID | wc -w)
+	if [[ $ICOUNT -eq 0 ]]; then
+		echo "$NAME: No running instances found with this name" 1>&2
+		exit 1
+	elif [[ $ICOUNT -gt 1 ]]; then
+		echo "$NAME: Multiple instances found:" 1>&2
+		for ID in $INST_ID; do
+			echo $ID 1>&2
+		done		
+		exit 1
+	fi
 fi
 
-echo "Forwarding local port $PORT to port 22 on $INST_ID..."
+echo "Forwarding local port $LOCAL_PORT to port $PORT on $INST_ID..."
 
 aws ssm start-session \
 	--target $INST_ID \
   	--document-name AWS-StartPortForwardingSession \
-	--parameters "{\"portNumber\":[\"22\"],\"localPortNumber\":[\"${PORT}\"]}"
-
+	--parameters "{\"portNumber\":[\"${PORT}\"],\"localPortNumber\":[\"${LOCAL_PORT}\"]}"
