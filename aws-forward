@@ -20,7 +20,7 @@ done
 shift $((OPTIND -1))
 
 if [[ $# -ne 1 ]]; then
-	echo "Usage: aws-session [-p <PORT> ] [-l <LOCAL_PORT>] <name>" 1>&2
+	echo "Usage: aws-forward [-p <PORT> ] [-l <LOCAL_PORT>] <name>" 1>&2
 	exit 1
 fi
 
