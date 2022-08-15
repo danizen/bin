@@ -1,0 +1,28 @@
+#!/bin/zsh
+
+# verify that the user's shell is zsh
+
+# find brew
+if [[ -x /opt/homebrew/bin/brew ]]; then
+    echo "brew is already installed"
+else
+    echo "installing brew"
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+
+# Tap OpenJDK
+brew tap AdoptOpenJDK/openjdk
+
+brew install pyenv
+brew install --cask pycharm
+brew install --cask sublime-text
+brew install --cask adoptopenjdk16
+brew install node@16
+brew install --cask google-chrome
+brew install --cask chromedriver
+
+# authorize apps
+zsh macapp-authorize
