@@ -17,6 +17,7 @@ fi
 brew tap AdoptOpenJDK/openjdk
 
 brew install pyenv
+brew install yenv-virtualenvwrapper
 brew install --cask pycharm
 brew install --cask sublime-text
 brew install --cask adoptopenjdk16
