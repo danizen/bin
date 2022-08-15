@@ -23,6 +23,7 @@ brew install --cask adoptopenjdk16
 brew install node@16
 brew install --cask google-chrome
 brew install --cask chromedriver
+brew install awscli
 
 # authorize apps
 zsh macapp-authorize
