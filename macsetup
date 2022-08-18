@@ -1,8 +1,15 @@
 #!/bin/zsh
 
-# verify that the user's shell is zsh
+MYDIR=$(dirname $0)
 
-# find brew
+## verify that the user is an admin
+groups ${USER} | grep -q -w admin
+if [[ $? -ne 0 ]]; then
+    echo "$0: user must be an admin" 1>&2
+    exit 1
+fi
+
+## find or install brew
 if [[ -x /opt/homebrew/bin/brew ]]; then
     echo "brew is already installed"
 else
@@ -12,6 +19,17 @@ else
     echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
     eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
+
+## If this system is an M1, install Rosetta
+ARCH=$(uname -p)
+if [[ $ARCH = "arm" ]]; then
+    if [[ -f "/Library/Apple/System/Library/Receipts/com.apple.pkg.RosettaUpdateAuto.bom" ]]; then
+        echo "rosetta is already installed"
+    else
+        softwareupdate --install-rosetta
+    fi
+fi
+
 
 ##
 # Consider using brewfile for these steps, we maybe will have an admin user who can run brew,
@@ -35,4 +53,4 @@ brew install ant maven
 
 
 # authorize apps
-zsh macapp-authorize
+${MYDIR}/macapp-authorize
