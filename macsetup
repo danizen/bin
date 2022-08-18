@@ -13,6 +13,10 @@ else
     eval "$(/opt/homebrew/bin/brew shellenv)"
 fi
 
+##
+# Consider using brewfile for these steps, we maybe will have an admin user who can run brew,
+# and a less privileged user who can become the privileged user.
+
 # Tap OpenJDK
 brew tap AdoptOpenJDK/openjdk
 
@@ -25,6 +29,10 @@ brew install node@16
 brew install --cask google-chrome
 brew install --cask chromedriver
 brew install awscli
+brew install --cask keepassxc
+brew install --cask eclipse-jee
+brew install ant maven
+
 
 # authorize apps
 zsh macapp-authorize
