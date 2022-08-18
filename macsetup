@@ -49,6 +49,7 @@ brew install --cask chromedriver
 brew install awscli
 brew install --cask keepassxc
 brew install --cask eclipse-jee
+brew install gnupg
 brew install ant maven
 
 
