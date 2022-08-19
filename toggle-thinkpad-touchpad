@@ -1,12 +1,17 @@
 #!/bin/bash
+# Associate this script with a Hot Key as follows:
+#  - Open Settings
+#  - Go to Keyboard shortcuts
+#  - Scroll to bottom - you should see "Custom Shortcuts" and a + button
+#  - If there is an entry for "Toggle touchpad", edit it.  If not, click the + button.
+# 
 
 read TPDevice <<< $(xinput | sed -nre '/Synaptics/ s/.*id=([0-9]+).*/\1/p')
-read propid state <<< $(xinput list-props "$TPDevice" | sed -nre '/Synaptics Off/ s/.*\(([0-9]+)\):[ \t]*([01])$/\1 \2/p')
-if [[ "$state" = "0" ]]; then
+read propid state <<< $(xinput list-props "$TPDevice" | sed -nre '/Device Enabled/ s/.*\(([0-9]+)\):[ \t]*([01])$/\1 \2/p')
+if [[ "$state" = "1" ]]; then
     echo "Touchpad enabled, disabling..."
-    xinput set-prop "$TPDevice" "$propid" 1 && notify-send -i input-touchpad "Touchpad" "Disabled"
+    xinput set-prop "$TPDevice" "$propid" 0 && notify-send -i input-touchpad "Touchpad" "Disabled"
 else
     echo "Touchpad disabled, enabling..."
-    xinput set-prop "$TPDevice" "$propid" 0 && notify-send -i input-touchpad "Touchpad" "Enabled"
+    xinput set-prop "$TPDevice" "$propid" 1 && notify-send -i input-touchpad "Touchpad" "Enabled"
 fi
-
