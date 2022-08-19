@@ -5,7 +5,7 @@ if [[ -d target && ! -d target/lib ]]; then
 fi
 
 if [[ $# -eq 0 && -f "setup.jsh" ]]; then
-    jshell --class-path target/classes:target/test-classes:target/lib/* -start setup.jsh
+    jshell --class-path target/dependency:target/test-classes:target/classes -start setup.jsh
 else
-    jshell --class-path target/classes:target/test-classes:target/lib/* $*
+    jshell --class-path target/dependency:target/test-classes:target/classes $*
 fi
