@@ -5,13 +5,32 @@
 #  - Scroll to bottom - you should see "Custom Shortcuts" and a + button
 #  - If there is an entry for "Toggle touchpad", edit it.  If not, click the + button.
 # 
+# Needs an update to cope with XWayland and Ubuntu 22.04
 
-read TPDevice <<< $(xinput | sed -nre '/Synaptics/ s/.*id=([0-9]+).*/\1/p')
-read propid state <<< $(xinput list-props "$TPDevice" | sed -nre '/Device Enabled/ s/.*\(([0-9]+)\):[ \t]*([01])$/\1 \2/p')
-if [[ "$state" = "1" ]]; then
-    echo "Touchpad enabled, disabling..."
-    xinput set-prop "$TPDevice" "$propid" 0 && notify-send -i input-touchpad "Touchpad" "Disabled"
+RELEASE=$(lsb_release -r | sed -re 's/Release:[ \t]+([0-9]+).*/\1/')
+if [[ $RELEASE -ge 22 ]]; then
+    SETTING=$(gsettings get org.gnome.desktop.peripherals.touchpad send-events)
+    case $SETTING in
+        "'enabled'")
+            echo "Touchpad enabled, disabling..."
+            gsettings set org.gnome.desktop.peripherals.touchpad send-events "'disabled'"
+            notify-send -i input-touchpad "Touchpad" "Disabled"
+            ;;
+        "'disabled'")
+            echo "Touchpad disabled, enabling..."
+            gsettings set org.gnome.desktop.peripherals.touchpad send-events "'enabled'"
+            notify-send -i input-touchpad "Touchpad" "Enabled"
+            ;;
+        *) echo "Unknown value" ;;
+    esac
 else
-    echo "Touchpad disabled, enabling..."
-    xinput set-prop "$TPDevice" "$propid" 1 && notify-send -i input-touchpad "Touchpad" "Enabled"
+    read TPDevice <<< $(xinput | sed -nre '/Synaptics/ s/.*id=([0-9]+).*/\1/p')
+    read propid state <<< $(xinput list-props "$TPDevice" | sed -nre '/Device Enabled/ s/.*\(([0-9]+)\):[ \t]*([01])$/\1 \2/p')
+    if [[ "$state" = "1" ]]; then
+        echo "Touchpad enabled, disabling..."
+        xinput set-prop "$TPDevice" "$propid" 0 && notify-send -i input-touchpad "Touchpad" "Disabled"
+    else
+        echo "Touchpad disabled, enabling..."
+        xinput set-prop "$TPDevice" "$propid" 1 && notify-send -i input-touchpad "Touchpad" "Enabled"
+    fi
 fi
