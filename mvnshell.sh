@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [[ -d target && ! -d target/lib ]]; then
+if [[ -d target && ! -d target/dependency ]];then
     mvn dependency:copy-dependencies
 fi
 

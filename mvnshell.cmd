@@ -3,7 +3,7 @@
 SET NARGS=0
 FOR %%x in (%*) DO SET /a NARGS += 1
 
-IF EXIST "target\lib" GOTO RUNSHELL
+IF EXIST "target\dependency" GOTO RUNSHELL
 CALL mvn dependency:copy-dependencies
 
 :RUNSHELL
