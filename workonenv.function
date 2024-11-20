@@ -1,0 +1,23 @@
+function workonenv() {
+    if [[ $# -ne 1 ]]; then
+        echo "Usage: $0 <path>" 1>&2
+        return 1
+    elif [[ ! -d $1 ]]; then
+        echo "$1: directory not found" 1>&2
+        return 1
+    elif [[ ! -f "$1/Pipfile" ]]; then
+        echo "$1/Pipfile: file not found" 1>&2
+        return 1
+    elif [[ -n "$VIRTUAL_ENV" ]]; then
+        echo "do not use this command from within a virtualenv" 1>&2
+        return 1
+    fi
+    ENV_NAME=$(python -c "from pipenv.project import Project; print(Project('$1').virtualenv_name)")
+    HAVE_WORKON=$(type workon | head -1)
+    if [[ "$HAVE_WORKON" != "workon is a function" ]]; then
+        ehco "virtualenvwrapper may not be active" 1>&2
+        return 1
+    fi
+    workon $ENV_NAME
+}
+ 
